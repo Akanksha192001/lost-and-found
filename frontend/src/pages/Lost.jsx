@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { api } from "../api/client";
+import "./lost.css";
 
 export default function Lost() {
   const [form, setForm] = useState({ title:"", description:"", locationLastSeen:"", dateLost:"" });
@@ -14,17 +15,20 @@ export default function Lost() {
       body: JSON.stringify(form)
     });
     alert("Lost item submitted: " + data.id);
+    setForm({ title:"", description:"", locationLastSeen:"", dateLost:"" });
   };
 
   return (
-    <div>
-      <h2>Report Lost Item</h2>
-      <form onSubmit={submit}>
-        <input name="title" placeholder="Item title" onChange={onChange} />
-        <input name="description" placeholder="Description" onChange={onChange} />
-        <input name="locationLastSeen" placeholder="Location last seen" onChange={onChange} />
-        <input name="dateLost" type="date" onChange={onChange} />
-        <button type="submit">Submit</button>
+    <div className="card">
+      <div className="header">
+        <h2 className="pageTitle">Report Lost Item</h2>
+      </div>
+      <form onSubmit={submit} className="form">
+        <input className="input" name="title" placeholder="Item title" value={form.title} onChange={onChange} />
+        <input className="input" name="description" placeholder="Description" value={form.description} onChange={onChange} />
+        <input className="input" name="locationLastSeen" placeholder="Location last seen" value={form.locationLastSeen} onChange={onChange} />
+        <input className="input" name="dateLost" type="date" value={form.dateLost} onChange={onChange} />
+        <button className="btn" type="submit">Submit Lost Report</button>
       </form>
     </div>
   );
