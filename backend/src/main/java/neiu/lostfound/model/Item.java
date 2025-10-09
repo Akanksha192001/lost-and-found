@@ -8,4 +8,7 @@ public class Item {
   public String location;
   public String dateISO;
   public String createdByUserId;
+  public String category;
+  public String photoData;
+  public String status; // LISTED, RETURNED, etc.
 }

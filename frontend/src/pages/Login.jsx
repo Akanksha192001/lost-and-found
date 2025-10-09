@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
+import { setSession, landingRouteFor } from "../auth";
 import "./login.css";
 
 export default function Login() {
@@ -9,16 +10,18 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [msg, setMsg] = useState("");
+  const [role, setRole] = useState("STUDENT");
   const nav = useNavigate();
 
   const onRegister = async (e) => {
     e.preventDefault();
     const data = await api("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ name, email, password, role })
     });
     setMsg(`Account created for ${data.name}. You can sign in now.`);
     setMode("login");
+    setRole("STUDENT");
   };
 
   const onLogin = async (e) => {
@@ -27,8 +30,8 @@ export default function Login() {
       method: "POST",
       body: JSON.stringify({ email, password })
     });
-    localStorage.setItem("uid", data.id);
-    nav("/lost"); // after login, go to Report Lost
+    setSession({ id: data.id, role: data.role, token: data.id });
+    nav(landingRouteFor(data.role));
   };
 
   return (
@@ -52,6 +55,12 @@ export default function Login() {
             <input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} />
             <input className="input" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
             <input className="input" placeholder="Password (8+ chars)" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
+            <label className="inputLabel" htmlFor="role">Role</label>
+            <select className="input" id="role" value={role} onChange={e=>setRole(e.target.value)}>
+              <option value="STUDENT">Student</option>
+              <option value="ADMIN">Admin</option>
+              <option value="SECURITY">Security</option>
+            </select>
             <button className="btn" type="submit">Create Account</button>
             <div className="note">Use a strong password. You can change it later when we add profile settings.</div>
             <div className="switch">Already have an account? <button type="button" onClick={()=>setMode('login')}>Sign in</button></div>

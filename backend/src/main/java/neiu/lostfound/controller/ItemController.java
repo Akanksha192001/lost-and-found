@@ -24,13 +24,28 @@ public class ItemController {
 
   @PostMapping("/lost")
   public ResponseEntity<Item> lost(@Valid @RequestBody LostItemRequest req,
+                                   @RequestHeader(value="Authorization", required=false) String auth,
                                    @RequestHeader(value="X-UID", required=false) String uid) {
-    return ResponseEntity.ok(items.createLost(req, uid == null ? "demoUser" : uid));
+    return ResponseEntity.ok(items.createLost(req, resolveUserId(auth, uid)));
   }
 
   @PostMapping("/found")
   public ResponseEntity<Item> found(@Valid @RequestBody FoundItemRequest req,
+                                    @RequestHeader(value="Authorization", required=false) String auth,
                                     @RequestHeader(value="X-UID", required=false) String uid) {
-    return ResponseEntity.ok(items.createFound(req, uid == null ? "demoUser" : uid));
+    return ResponseEntity.ok(items.createFound(req, resolveUserId(auth, uid)));
+  }
+
+  private String resolveUserId(String authHeader, String uidHeader) {
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      String token = authHeader.substring("Bearer ".length()).trim();
+      if (!token.isEmpty()) {
+        return token;
+      }
+    }
+    if (uidHeader != null && !uidHeader.isBlank()) {
+      return uidHeader;
+    }
+    return "demoUser";
   }
 }

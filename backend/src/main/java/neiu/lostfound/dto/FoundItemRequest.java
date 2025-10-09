@@ -7,6 +7,9 @@ public class FoundItemRequest {
   public String title;
   public String description;
   @NotBlank
+  public String category;
+  @NotBlank
   public String locationFound;
   public String dateFound; // ISO yyyy-MM-dd or datetime
+  public String photoData; // base64 encoded image string
 }

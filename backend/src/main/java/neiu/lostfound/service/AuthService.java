@@ -6,6 +6,7 @@ import neiu.lostfound.model.User;
 import neiu.lostfound.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 @Service
@@ -21,6 +22,11 @@ public class AuthService {
     u.id = UUID.randomUUID().toString();
     u.name = req.name;
     u.email = req.email;
+    String role = req.role == null ? "STUDENT" : req.role.trim().toUpperCase();
+    if (!Arrays.asList("STUDENT", "ADMIN", "SECURITY").contains(role)) {
+      role = "STUDENT";
+    }
+    u.role = role;
     // Demo only: not secure; replace with BCrypt later
     u.passwordHash = "{noop}" + req.password;
     return repo.save(u);
