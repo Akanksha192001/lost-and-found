@@ -13,16 +13,22 @@ export default function NavBar() {
       {!logged && pathname !== "/" && <Link className="link" to="/">Login</Link>}
       {logged && (
         <>
-          {role === "STUDENT" && (
+          {(role === "USER" || role === "ADMIN") && (
             <Link to="/lost" className={pathname==="/lost"?"link":""}>Report Lost</Link>
           )}
-          {(role === "STUDENT" || role === "ADMIN") && (
+          {(role === "USER" || role === "ADMIN") && (
             <Link to="/found" className={pathname==="/found"?"link":""}>Report Found</Link>
+          )}
+          {(role === "USER" || role === "ADMIN") && (
+            <Link to="/lost-reports" className={pathname==="/lost-reports"?"link":""}>Lost Reports</Link>
+          )}
+          {(role === "USER" || role === "ADMIN") && (
+            <Link to="/found-reports" className={pathname==="/found-reports"?"link":""}>Found Reports</Link>
           )}
           {role === "ADMIN" && (
             <Link to="/admin" className={pathname==="/admin"?"link":""}>Admin Dashboard</Link>
           )}
-          {role === "SECURITY" && (
+          {role === "ADMIN" && (
             <Link to="/handoff" className={pathname==="/handoff"?"link":""}>Hand-off Queue</Link>
           )}
           <button className="btn" onClick={logout} style={{padding:'8px 14px'}}>Logout</button>

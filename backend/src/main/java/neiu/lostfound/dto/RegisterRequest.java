@@ -12,6 +12,6 @@ public class RegisterRequest {
   @NotBlank
   public String password;
   @NotBlank
-  @Pattern(regexp = "STUDENT|ADMIN|SECURITY", message = "Role must be STUDENT, ADMIN, or SECURITY")
+  @Pattern(regexp = "USER|ADMIN", message = "Role must be USER or ADMIN")
   public String role;
 }

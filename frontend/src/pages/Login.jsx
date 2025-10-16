@@ -10,28 +10,41 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [msg, setMsg] = useState("");
-  const [role, setRole] = useState("STUDENT");
+  const [error, setError] = useState("");
+  const [role, setRole] = useState("USER");
   const nav = useNavigate();
 
   const onRegister = async (e) => {
     e.preventDefault();
-    const data = await api("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ name, email, password, role })
-    });
-    setMsg(`Account created for ${data.name}. You can sign in now.`);
-    setMode("login");
-    setRole("STUDENT");
+    setMsg("");
+    setError("");
+    try {
+      const data = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password, role })
+      });
+      setMsg(`Account created for ${data.name}. You can sign in now.`);
+      setMode("login");
+      setRole("USER");
+    } catch (err) {
+      setError(err.message || "Could not create account. Please try again.");
+    }
   };
 
   const onLogin = async (e) => {
     e.preventDefault();
-    const data = await api("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
-    setSession({ id: data.id, role: data.role, token: data.id });
-    nav(landingRouteFor(data.role));
+    setMsg("");
+    setError("");
+    try {
+      const data = await api("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      setSession({ id: data.id, role: data.role, token: data.id });
+      nav(landingRouteFor(data.role));
+    } catch (err) {
+      setError(err.message || "Invalid credentials. Please try again.");
+    }
   };
 
   return (
@@ -57,15 +70,15 @@ export default function Login() {
             <input className="input" placeholder="Password (8+ chars)" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
             <label className="inputLabel" htmlFor="role">Role</label>
             <select className="input" id="role" value={role} onChange={e=>setRole(e.target.value)}>
-              <option value="STUDENT">Student</option>
+              <option value="USER">User</option>
               <option value="ADMIN">Admin</option>
-              <option value="SECURITY">Security</option>
             </select>
             <button className="btn" type="submit">Create Account</button>
             <div className="note">Use a strong password. You can change it later when we add profile settings.</div>
             <div className="switch">Already have an account? <button type="button" onClick={()=>setMode('login')}>Sign in</button></div>
           </form>
         )}
+        {error && <p className="error">{error}</p>}
         {msg && <p className="note">{msg}</p>}
       </div>
     </div>

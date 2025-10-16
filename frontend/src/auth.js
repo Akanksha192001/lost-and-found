@@ -3,12 +3,11 @@ const ROLE_KEY = "role";
 const TOKEN_KEY = "token";
 
 export function isLoggedIn(){ return !!localStorage.getItem(UID_KEY); }
-export function getRole(){ return localStorage.getItem(ROLE_KEY) || "STUDENT"; }
+export function getRole(){ return localStorage.getItem(ROLE_KEY) || "USER"; }
 export function getToken(){ return localStorage.getItem(TOKEN_KEY); }
 export function landingRouteFor(role){
   switch ((role || "").toUpperCase()) {
     case "ADMIN": return "/admin";
-    case "SECURITY": return "/handoff";
     default: return "/lost";
   }
 }
