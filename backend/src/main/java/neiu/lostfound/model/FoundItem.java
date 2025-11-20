@@ -1,10 +1,14 @@
 package neiu.lostfound.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
 @Table(name = "found_items")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FoundItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,10 +24,11 @@ public class FoundItem {
     private String location;
 
     @Temporal(TemporalType.DATE)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private Date dateFound;
 
-    @Column(length = 255)
-    private String imageUrl;
+    @Column(columnDefinition = "TEXT")
+    private String imageData;
 
     @Column(length = 100)
     private String reporterName;
@@ -31,10 +36,7 @@ public class FoundItem {
     @Column(length = 100)
     private String reporterEmail;
 
-    @Column(length = 255)
-    private String reporterAddress;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reported_by")
     private User reportedBy;
 
@@ -42,9 +44,10 @@ public class FoundItem {
     @Column(length = 10)
     private Status status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "matched_with")
-    private LostItem matchedWith;
+    @JsonManagedReference("lost-found-match")
+    private LostItem matchedWith; // (in FoundItem)
 
     @Column(length = 255)
     private String keywords; // comma-separated keywords for matching
@@ -70,14 +73,12 @@ public class FoundItem {
     public void setLocation(String location) { this.location = location; }
     public Date getDateFound() { return dateFound; }
     public void setDateFound(Date dateFound) { this.dateFound = dateFound; }
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getImageData() { return imageData; }
+    public void setImageData(String imageData) { this.imageData = imageData; }
     public String getReporterName() { return reporterName; }
     public void setReporterName(String reporterName) { this.reporterName = reporterName; }
     public String getReporterEmail() { return reporterEmail; }
     public void setReporterEmail(String reporterEmail) { this.reporterEmail = reporterEmail; }
-    public String getReporterAddress() { return reporterAddress; }
-    public void setReporterAddress(String reporterAddress) { this.reporterAddress = reporterAddress; }
     public User getReportedBy() { return reportedBy; }
     public void setReportedBy(User reportedBy) { this.reportedBy = reportedBy; }
     public Status getStatus() { return status; }

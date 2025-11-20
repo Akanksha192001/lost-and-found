@@ -12,8 +12,10 @@ public interface FoundItemRepository extends JpaRepository<FoundItem, Long> {
     List<FoundItem> findByLocationContainingIgnoreCase(String location);
     List<FoundItem> findByReporterNameContainingIgnoreCase(String reporterName);
     List<FoundItem> findByReporterEmailContainingIgnoreCase(String reporterEmail);
-    List<FoundItem> findByReporterAddressContainingIgnoreCase(String reporterAddress);
 
-    @Query("SELECT f FROM FoundItem f WHERE (:q IS NULL OR LOWER(f.title) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.location) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.reporterName) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.reporterEmail) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.reporterAddress) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.description) LIKE LOWER(CONCAT('%',:q,'%')))")
+    @Query("SELECT f FROM FoundItem f WHERE (:q IS NULL OR LOWER(f.title) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.location) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.reporterName) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.reporterEmail) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(f.description) LIKE LOWER(CONCAT('%',:q,'%')))")
     List<FoundItem> searchFoundItems(@Param("q") String q);
+    
+    @Query("SELECT f FROM FoundItem f WHERE f.reportedBy.email = :email ORDER BY f.id DESC")
+    List<FoundItem> findByReportedByEmail(@Param("email") String email);
 }

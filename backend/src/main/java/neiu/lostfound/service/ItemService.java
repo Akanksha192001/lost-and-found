@@ -41,8 +41,8 @@ public class ItemService {
     return String.join(",", keywords);
   }
 
-  public LostItem createLost(LostItemRequest req, Long userId) {
-    log.info("Creating lost item: title={}, userId={}", req.title, userId);
+  public LostItem createLost(LostItemRequest req, String userEmail) {
+    log.info("Creating lost item: title={}, userEmail={}", req.title, userEmail);
     LostItem it = new LostItem();
     it.setTitle(req.title == null ? null : req.title.trim());
     it.setDescription(req.description);
@@ -52,14 +52,24 @@ public class ItemService {
         it.setDateLost(new SimpleDateFormat("yyyy-MM-dd").parse(req.dateLost.trim()));
       }
     } catch (Exception e) { log.warn("Invalid dateLost format"); }
-    it.setImageUrl(req.imageUrl);
-    it.setOwnerName(req.ownerName);
-    it.setOwnerEmail(req.ownerEmail);
-    it.setOwnerAddress(req.ownerAddress);
+    it.setImageData(req.imageData);
     // New lost items are OPEN by default
     it.setStatus(LostItem.Status.OPEN);
-    if (userId != null) {
-      userRepo.findById(userId).ifPresent(it::setReportedBy);
+    if (userEmail != null) {
+      userRepo.findByEmail(userEmail).ifPresent(user -> {
+        it.setReportedBy(user);
+        // Set owner details - use provided values if available (ADMIN case), otherwise use authenticated user
+        if (req.ownerName != null && !req.ownerName.trim().isEmpty()) {
+          it.setOwnerName(req.ownerName.trim());
+        } else {
+          it.setOwnerName(user.getName());
+        }
+        if (req.ownerEmail != null && !req.ownerEmail.trim().isEmpty()) {
+          it.setOwnerEmail(req.ownerEmail.trim());
+        } else {
+          it.setOwnerEmail(user.getEmail());
+        }
+      });
     }
     if (req.matchedWith != null) {
       foundRepo.findById(req.matchedWith).ifPresent(it::setMatchedWith);
@@ -71,8 +81,8 @@ public class ItemService {
     return lostRepo.save(it);
   }
 
-  public FoundItem createFound(FoundItemRequest req, Long userId) {
-    log.info("Creating found item: title={}, userId={}", req.title, userId);
+  public FoundItem createFound(FoundItemRequest req, String userEmail) {
+    log.info("Creating found item: title={}, userEmail={}", req.title, userEmail);
     FoundItem it = new FoundItem();
     it.setTitle(req.title == null ? null : req.title.trim());
     it.setDescription(req.description);
@@ -82,11 +92,24 @@ public class ItemService {
         it.setDateFound(new SimpleDateFormat("yyyy-MM-dd").parse(req.dateFound.trim()));
       }
     } catch (Exception e) { log.warn("Invalid dateFound format"); }
-    it.setImageUrl(req.imageUrl);
+    it.setImageData(req.imageData);
     // New found items are UNCLAIMED by default
     it.setStatus(FoundItem.Status.UNCLAIMED);
-    if (userId != null) {
-      userRepo.findById(userId).ifPresent(it::setReportedBy);
+    if (userEmail != null) {
+      userRepo.findByEmail(userEmail).ifPresent(user -> {
+        it.setReportedBy(user);
+        // Set reporter details - use provided values if available (ADMIN case), otherwise use authenticated user
+        if (req.reporterName != null && !req.reporterName.trim().isEmpty()) {
+          it.setReporterName(req.reporterName.trim());
+        } else {
+          it.setReporterName(user.getName());
+        }
+        if (req.reporterEmail != null && !req.reporterEmail.trim().isEmpty()) {
+          it.setReporterEmail(req.reporterEmail.trim());
+        } else {
+          it.setReporterEmail(user.getEmail());
+        }
+      });
     }
     if (req.matchedWith != null) {
       lostRepo.findById(req.matchedWith).ifPresent(it::setMatchedWith);
@@ -98,8 +121,18 @@ public class ItemService {
     return foundRepo.save(it);
   }
 
-  public List<LostItem> listLost() { return lostRepo.findAll(); }
-  public List<FoundItem> listFound() { return foundRepo.findAll(); }
+  public List<LostItem> listLost() {
+    return lostRepo.findAll();
+  }
+  
+  public List<LostItem> listLostByUser(String userEmail) {
+    log.info("Fetching lost items for user: {}", userEmail);
+    return lostRepo.findByReportedByEmail(userEmail);
+  }
+  
+  public List<FoundItem> listFound() {
+    return foundRepo.findAll();
+  }
 
   public List<LostItem> searchLostItems(String q, String category, String subcategory) {
     List<LostItem> all = lostRepo.findAll();

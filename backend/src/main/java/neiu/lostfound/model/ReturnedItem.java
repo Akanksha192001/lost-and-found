@@ -22,8 +22,8 @@ public class ReturnedItem {
     @Temporal(TemporalType.DATE)
     private Date dateReturned;
 
-    @Column(length = 255)
-    private String imageUrl;
+    @Column(columnDefinition = "TEXT")
+    private String imageData;
 
     @Column(length = 100)
     private String ownerName;
@@ -31,17 +31,11 @@ public class ReturnedItem {
     @Column(length = 100)
     private String ownerEmail;
 
-    @Column(length = 255)
-    private String ownerAddress;
-
     @Column(length = 100)
     private String reporterName;
 
     @Column(length = 100)
     private String reporterEmail;
-
-    @Column(length = 255)
-    private String reporterAddress;
 
     // Getters and setters
     public Long getId() { return id; }
@@ -54,18 +48,14 @@ public class ReturnedItem {
     public void setLocation(String location) { this.location = location; }
     public Date getDateReturned() { return dateReturned; }
     public void setDateReturned(Date dateReturned) { this.dateReturned = dateReturned; }
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getImageData() { return imageData; }
+    public void setImageData(String imageData) { this.imageData = imageData; }
     public String getOwnerName() { return ownerName; }
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
     public String getOwnerEmail() { return ownerEmail; }
     public void setOwnerEmail(String ownerEmail) { this.ownerEmail = ownerEmail; }
-    public String getOwnerAddress() { return ownerAddress; }
-    public void setOwnerAddress(String ownerAddress) { this.ownerAddress = ownerAddress; }
     public String getReporterName() { return reporterName; }
     public void setReporterName(String reporterName) { this.reporterName = reporterName; }
     public String getReporterEmail() { return reporterEmail; }
     public void setReporterEmail(String reporterEmail) { this.reporterEmail = reporterEmail; }
-    public String getReporterAddress() { return reporterAddress; }
-    public void setReporterAddress(String reporterAddress) { this.reporterAddress = reporterAddress; }
 }

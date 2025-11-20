@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { categories } from "../api/categories";
+import { formatDate } from "../utils/dateUtils";
 import "./found.css";
 
 
@@ -13,6 +14,10 @@ export default function FoundReports() {
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [subcatOptions, setSubcatOptions] = useState([]);
+  const [matches, setMatches] = useState({}); // { [foundId]: [lostItems] }
+  const [showMatchesFor, setShowMatchesFor] = useState(null);
+  const [confirming, setConfirming] = useState({}); // { [lostId_foundId]: true/false }
+  const [confirmMsg, setConfirmMsg] = useState("");
   const navigate = useNavigate();
 
   const loadFoundItems = async () => {
@@ -24,9 +29,7 @@ export default function FoundReports() {
     } catch (err) {
       // Check if it's a session expiry or authentication error
       if (err.status === 401 || err.status === 403 || err.message?.includes("Unauthorized") || err.message?.includes("authentication")) {
-        // Clear any stored auth tokens and redirect to login
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("token");
+        // Session expired, redirect to login
         navigate("/", { replace: true });
         return;
       }
@@ -57,15 +60,59 @@ export default function FoundReports() {
     setLoading(true);
     setError("");
     try {
-      let url = searchTerm.trim() ? `/items/found/search?q=${encodeURIComponent(searchTerm)}` : "/items/found";
-      if (category) url += `&category=${encodeURIComponent(category)}`;
-      if (subcategory) url += `&subcategory=${encodeURIComponent(subcategory)}`;
+      const params = new URLSearchParams();
+      
+      if (searchTerm.trim()) {
+        params.append('q', searchTerm.trim());
+      }
+      if (category) {
+        params.append('category', category);
+      }
+      if (subcategory) {
+        params.append('subcategory', subcategory);
+      }
+      const url = `/items/found${params.toString() ? `?${params.toString()}` : ''}`;
       const data = await api(url);
       setItems(data);
     } catch (err) {
       setError(err.message || "Search failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMatches = async (foundId) => {
+    setShowMatchesFor(foundId);
+    setMatches(prev => ({ ...prev, [foundId]: null }));
+    try {
+      const lostMatches = await api(`/items/found/${foundId}/matches`);
+      setMatches(prev => ({ ...prev, [foundId]: lostMatches }));
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        navigate("/", { replace: true });
+        return;
+      }
+      setMatches(prev => ({ ...prev, [foundId]: [] }));
+    }
+  };
+
+  const handleConfirmMatch = async (lostId, foundId) => {
+    setConfirming(prev => ({ ...prev, [`${lostId}_${foundId}`]: true }));
+    setConfirmMsg("");
+    try {
+      await api(`/items/lost/${lostId}/confirm-match/${foundId}`, { method: "POST" });
+      setConfirmMsg("Match confirmed and handoff created successfully! Check the Handoff Queue to manage it.");
+      alert("Match confirmed! A handoff has been automatically created. Go to Handoff Queue to schedule the return.");
+      await loadFoundItems();
+      await fetchMatches(foundId);
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        navigate("/", { replace: true });
+        return;
+      }
+      setConfirmMsg(err.message || "Failed to confirm match.");
+    } finally {
+      setConfirming(prev => ({ ...prev, [`${lostId}_${foundId}`]: false }));
     }
   };
 
@@ -111,27 +158,72 @@ export default function FoundReports() {
           <div className="items-grid">
             {items.map(item => (
               <div key={item.id} className="item-card">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.title} className="item-image" />
-                ) : (
-                  <div className="image-placeholder">
-                    No Image Available
-                  </div>
-                )}
+                {item.imageData ? (
+                  <img 
+                    src={item.imageData} 
+                    alt={item.title} 
+                    className="item-image"
+                    onError={(e) => {
+                      e.target.onerror = null; // Prevent infinite loop
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="image-placeholder"
+                  style={{ display: item.imageData ? 'none' : 'flex' }}
+                >
+                  No Image Available
+                </div>
                 <div className="item-content">
                   <h3 className="item-title">{item.title}</h3>
                   <div className="item-location">{item.location}</div>
-                  <div className="item-date">{item.dateFound}</div>
+                  <div className="item-date">{formatDate(item.dateFound)}</div>
                   {item.description && (
                     <div className="item-description">{item.description}</div>
                   )}
                   <div className="item-reporter">
                     Reporter: {item.reporterName}
                     {item.reporterEmail && ` (${item.reporterEmail})`}
-                    {item.reporterAddress && ` - ${item.reporterAddress}`}
                   </div>
                   <span className="item-status">{item.status}</span>
+                  <div style={{marginTop: '12px'}}>
+                    <button className="btn" onClick={() => fetchMatches(item.id)}>View Matches</button>
+                  </div>
                 </div>
+                {showMatchesFor === item.id && (
+                  <div style={{padding: '16px', borderTop: '1px solid var(--border)', background: '#f8f9fa'}}>
+                    <h4 style={{margin: '0 0 12px 0', fontSize: '16px'}}>Potential Matches (Lost Items):</h4>
+                    {matches[item.id] == null ? (
+                      <p>Loading matches...</p>
+                    ) : matches[item.id].length === 0 ? (
+                      <p>No matches found.</p>
+                    ) : (
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                        {matches[item.id].map(lost => (
+                          <div key={lost.id} style={{padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid var(--border)'}}>
+                            <div style={{fontWeight: 'bold', marginBottom: '4px'}}>{lost.title} ({lost.location})</div>
+                            <div style={{fontSize: '14px', color: 'var(--muted)', marginBottom: '4px'}}>{lost.description}</div>
+                            <div style={{fontSize: '13px', color: 'var(--muted)', marginBottom: '4px'}}>Date lost: {formatDate(lost.dateLost)}</div>
+                            <div style={{fontSize: '13px', color: 'var(--muted)', marginBottom: '8px'}}>Owner: {lost.ownerName} {lost.ownerEmail && `(${lost.ownerEmail})`}</div>
+                            <button 
+                              className="btn" 
+                              style={{fontSize: '12px', padding: '4px 8px'}} 
+                              onClick={() => handleConfirmMatch(lost.id, item.id)} 
+                              disabled={!!confirming[`${lost.id}_${item.id}`]}
+                            >
+                              {confirming[`${lost.id}_${item.id}`] ? 'Processing...' : 'Confirm Match & Create Handoff'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {showMatchesFor === item.id && confirmMsg && (
+                  <div style={{padding: '12px', background: '#d4edda', color: '#155724', borderTop: '1px solid var(--border)'}}>{confirmMsg}</div>
+                )}
               </div>
             ))}
           </div>

@@ -14,22 +14,22 @@ export default function NavBar() {
       {logged && (
         <>
           {(role === "USER" || role === "ADMIN") && (
-            <Link to="/lost" className={pathname==="/lost"?"link":""}>Report Lost</Link>
-          )}
-          {(role === "USER" || role === "ADMIN") && (
-            <Link to="/found" className={pathname==="/found"?"link":""}>Report Found</Link>
-          )}
-          {(role === "USER" || role === "ADMIN") && (
-            <Link to="/lost-reports" className={pathname==="/lost-reports"?"link":""}>Lost Reports</Link>
-          )}
-          {(role === "USER" || role === "ADMIN") && (
-            <Link to="/found-reports" className={pathname==="/found-reports"?"link":""}>Found Reports</Link>
+            <Link to="/lost" className={pathname==="/lost"?"link":""}>Report Lost Item</Link>
           )}
           {role === "ADMIN" && (
-            <Link to="/admin" className={pathname==="/admin"?"link":""}>Admin Dashboard</Link>
+            <Link to="/found" className={pathname==="/found"?"link":""}>Report Found Item</Link>
+          )}
+          {role === "USER" && (
+            <Link to="/lost-reports" className={pathname==="/lost-reports"?"link":""}>My Lost Items</Link>
           )}
           {role === "ADMIN" && (
-            <Link to="/handoff" className={pathname==="/handoff"?"link":""}>Hand-off Queue</Link>
+            <Link to="/lost-reports" className={pathname==="/lost-reports"?"link":""}>Lost Items</Link>
+          )}
+          {role === "ADMIN" && (
+            <Link to="/found-reports" className={pathname==="/found-reports"?"link":""}>Found Items</Link>
+          )}
+          {role === "ADMIN" && (
+            <Link to="/admin" className={pathname==="/admin"?"link":""}>Handoff Queue</Link>
           )}
           <button className="btn" onClick={logout} style={{padding:'8px 14px'}}>Logout</button>
         </>

@@ -2,18 +2,25 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { categories } from "../api/categories";
+import { getUserName, getUserEmail, getRole } from "../auth";
 import "./found.css";
 
 export default function Found() {
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  const userRole = getRole();
   const [form, setForm] = useState({
     title: "",
     description: "",
     location: "",
-    dateFound: "",
-    imageUrl: "",
-    reporterName: "",
-    reporterEmail: "",
-    reporterAddress: "",
+    dateFound: getTodayDate(),
+    imageData: "",
+    reporterName: userRole === "ADMIN" ? "" : getUserName(),
+    reporterEmail: userRole === "ADMIN" ? "" : getUserEmail(),
     category: "",
     subcategory: ""
   });
@@ -32,15 +39,66 @@ export default function Found() {
   const onPhotoChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) {
-      setForm((prev) => ({ ...prev, imageUrl: "" }));
+      setForm((prev) => ({ ...prev, imageData: "" }));
       setPhotoPreview("");
       return;
     }
+    
+    // Check file size (limit to 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      setError("Image file size must be less than 5MB. Please choose a smaller image.");
+      e.target.value = ""; // Clear the file input
+      return;
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please select a valid image file.");
+      e.target.value = "";
+      return;
+    }
+    
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageUrl: result }));
-      setPhotoPreview(result);
+      
+      // Optionally compress image if it's large
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize if image is too large (max 1200px on longest side)
+        const maxDimension = 1200;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 with compression (0.85 quality for JPEG)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setForm((prev) => ({ ...prev, imageData: compressedDataUrl }));
+        setPhotoPreview(compressedDataUrl);
+      };
+      img.onerror = () => {
+        setError("Failed to load image. Please try another file.");
+      };
+      img.src = result;
+    };
+    reader.onerror = () => {
+      setError("Failed to read image file. Please try again.");
     };
     reader.readAsDataURL(file);
   };
@@ -71,20 +129,25 @@ export default function Found() {
         title: "",
         description: "",
         location: "",
-        dateFound: "",
-        imageUrl: "",
-        reporterName: "",
-        reporterEmail: "",
-        reporterAddress: "",
+        dateFound: getTodayDate(),
+        imageData: "",
+        reporterName: userRole === "ADMIN" ? "" : getUserName(),
+        reporterEmail: userRole === "ADMIN" ? "" : getUserEmail(),
         category: "",
         subcategory: ""
       });
       setPhotoPreview("");
     } catch (err) {
-      if (err.status === 401 || err.status === 403 || err.message?.includes("Unauthorized") || err.message?.includes("authentication")) {
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("token");
+      // Check if it's a session expiry or authentication error
+      if (err.isAuthError || err.status === 401) {
+        // Show session expired message and redirect to login
+        alert("Session expired. Please login again.");
         navigate("/", { replace: true });
+        return;
+      }
+      if (err.isForbidden || err.status === 403) {
+        // Show access denied message
+        setError("Access denied. You don't have permission to perform this action.");
         return;
       }
       setError(err.message || "Could not submit found report. Please try again.");
@@ -98,26 +161,89 @@ export default function Found() {
         <p className="subtitle">Attach a photo and we'll scan for duplicates.</p>
       </div>
       <form onSubmit={submit} className="form">
-        <input className="input" name="title" placeholder="Item title" value={form.title} onChange={onChange} required />
-        <textarea className="input" name="description" placeholder="Description" value={form.description} onChange={onChange} rows={3} />
-        <input className="input" name="location" placeholder="Location found" value={form.location} onChange={onChange} required />
-        <input className="input" name="dateFound" type="date" value={form.dateFound} onChange={onChange} required />
-        <label className="inputLabel" htmlFor="photoInput">Attach photo</label>
-        <input className="input" id="photoInput" name="photo" type="file" accept="image/*" onChange={onPhotoChange} />
-        {photoPreview && (
-          <img src={photoPreview} alt="Preview" className="preview" />
+        {/* 1. Essential Item Details */}
+        <div className="form-section">
+          <h3 className="section-title">Item Details</h3>
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="title">Item Title *</label>
+          <input className="input" id="title" name="title" placeholder="What item did you find?" value={form.title} onChange={onChange} required />
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="description">Description</label>
+          <textarea className="input" id="description" name="description" placeholder="Describe the item (color, size, brand, condition, etc.)" value={form.description} onChange={onChange} rows={3} />
+        </div>
+        
+        {/* 2. Categorization */}
+        <div className="form-section">
+          <h3 className="section-title">Category</h3>
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="category">Category *</label>
+          <select className="input" id="category" name="category" value={form.category} onChange={onCategoryChange} required>
+            <option value="">Select item category</option>
+            {categories.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+          </select>
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="subcategory">Subcategory *</label>
+          <select className="input" id="subcategory" name="subcategory" value={form.subcategory} onChange={onSubcategoryChange} required disabled={!form.category}>
+            <option value="">Select subcategory</option>
+            {subcatOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+          </select>
+        </div>
+        
+        {/* 3. Location & Date */}
+        <div className="form-section">
+          <h3 className="section-title">When & Where</h3>
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="location">Location Found *</label>
+          <input className="input" id="location" name="location" placeholder="Where did you find this item?" value={form.location} onChange={onChange} required />
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="dateFound">Date Found *</label>
+          <input className="input" id="dateFound" name="dateFound" type="date" value={form.dateFound} onChange={onChange} required />
+        </div>
+        
+        {/* 4. Photo Upload */}
+        <div className="form-section">
+          <h3 className="section-title">Photo</h3>
+        </div>
+        
+        <div className="field-group">
+          <label className="inputLabel" htmlFor="photoInput">Attach Photo</label>
+          <input className="input" id="photoInput" name="photo" type="file" accept="image/*" onChange={onPhotoChange} />
+          {photoPreview && (
+            <img src={photoPreview} alt="Preview" className="preview" />
+          )}
+        </div>
+        
+        {/* 5. Contact Information (ADMIN only) */}
+        {userRole === "ADMIN" && (
+          <>
+            <div className="form-section">
+              <h3 className="section-title">Reporter Contact</h3>
+            </div>
+            
+            <div className="field-group">
+              <label className="inputLabel" htmlFor="reporterName">Reporter Name</label>
+              <input className="input" id="reporterName" name="reporterName" placeholder="Name of the person reporting" value={form.reporterName} onChange={onChange} />
+            </div>
+            
+            <div className="field-group">
+              <label className="inputLabel" htmlFor="reporterEmail">Reporter Email</label>
+              <input className="input" id="reporterEmail" name="reporterEmail" type="email" placeholder="Email of the person reporting" value={form.reporterEmail} onChange={onChange} />
+            </div>
+          </>
         )}
-        <input className="input" name="reporterName" placeholder="Reporter name" value={form.reporterName} onChange={onChange} />
-        <input className="input" name="reporterEmail" placeholder="Reporter email" value={form.reporterEmail} onChange={onChange} />
-        <input className="input" name="reporterAddress" placeholder="Reporter address" value={form.reporterAddress} onChange={onChange} />
-        <select className="input" name="category" value={form.category} onChange={onCategoryChange} required>
-          <option value="">Select category</option>
-          {categories.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
-        </select>
-        <select className="input" name="subcategory" value={form.subcategory} onChange={onSubcategoryChange} required disabled={!form.category}>
-          <option value="">Select subcategory</option>
-          {subcatOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-        </select>
+        
         <button className="btn" type="submit">Submit Found Report</button>
         {error && <p className="error">{error}</p>}
         {message && <p className="note">{message}</p>}

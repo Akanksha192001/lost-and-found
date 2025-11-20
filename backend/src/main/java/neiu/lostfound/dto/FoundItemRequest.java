@@ -9,10 +9,9 @@ public class FoundItemRequest {
     @NotBlank
     public String location;
     public String dateFound; // ISO yyyy-MM-dd
-    public String imageUrl;
+    public String imageData; // Base64 encoded image data from file upload
     public String reporterName;
     public String reporterEmail;
-    public String reporterAddress;
     public Long reportedBy; // User ID
     public Long matchedWith; // LostItem ID (nullable)
     public String category;

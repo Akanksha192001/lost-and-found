@@ -29,11 +29,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("https://example.com", "http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","HEAD","OPTIONS"));
-        configuration.addAllowedHeader("Content-Type");
-        configuration.addAllowedHeader("Authorization");
-        configuration.getMaxAge();
+        configuration.setAllowedOrigins(Arrays.asList("https://example.com", "http://localhost:3000" ));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*")); // Allow all headers
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration); // allow all paths
@@ -49,15 +47,30 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions().sameOrigin())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/items/lost").permitAll()
-                        .anyRequest().permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/items/lost").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/items/lost/my").authenticated()
+                        .anyRequest().hasRole("ADMIN")
                 )
                 // ✅ Enable session management
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
                         .maximumSessions(1) // Optional: prevent concurrent logins
+                )
+                // Handle authentication errors
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            log.warn("Authentication failed for request: {} - {}", request.getRequestURI(), authException.getMessage());
+                            response.setStatus(401);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"Session expired. Please login again.\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            log.warn("Access denied for request: {} - {}", request.getRequestURI(), accessDeniedException.getMessage());
+                            response.setStatus(403);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"FORBIDDEN\",\"message\":\"Access denied. Insufficient privileges.\"}");
+                        })
                 );
-
         return http.build();
     }
 

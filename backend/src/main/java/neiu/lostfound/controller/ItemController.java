@@ -10,8 +10,11 @@ import neiu.lostfound.service.ItemService;
 import neiu.lostfound.service.MatchingService;
 import neiu.lostfound.model.ItemMatch;
 import neiu.lostfound.model.ReturnedItem;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,44 +31,51 @@ public class ItemController {
     this.matchingService = matchingService;
   }
 
-  @GetMapping("/found")
-  public ResponseEntity<List<FoundItem>> allFound() {
-    log.info("Fetching all found items");
-    return ResponseEntity.ok(items.listFound());
-  }
-
-  @GetMapping("/lost")
-  public ResponseEntity<List<LostItem>> allLost() {
-    log.info("Fetching all lost items");
-    return ResponseEntity.ok(items.listLost());
+  @GetMapping("/lost/my")
+  public ResponseEntity<List<LostItem>> myLostItems() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userEmail = auth.getName(); // Spring Security uses email as username
+    log.info("Fetching lost items for user: {}", userEmail);
+    
+    try {
+      List<LostItem> userItems = items.listLostByUser(userEmail);
+      return ResponseEntity.ok(userItems);
+    } catch (Exception e) {
+      log.error("Error fetching lost items for user {}: {}", userEmail, e.getMessage());
+      return ResponseEntity.status(500).build();
+    }
   }
   @PostMapping("/lost")
-  public ResponseEntity<?> lost(@Valid @RequestBody LostItemRequest req,
-                                   @RequestHeader(value="Authorization", required=false) String auth,
-                                   @RequestHeader(value="X-UID", required=false) String uid) {
-    log.info("Lost item reported: title={}, userId={}", req.title, uid);
-    Long userId = null;
+  public ResponseEntity<?> lost(@Valid @RequestBody LostItemRequest req) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userEmail = auth.getName();
+    log.info("Lost item reported: title={}, userEmail={}", req.title, userEmail);
+    
     try {
-      userId = uid != null ? Long.valueOf(uid) : null;
-    } catch (Exception e) { log.warn("Invalid userId format"); }
-    LostItem created = items.createLost(req, userId);
-    return ResponseEntity.status(201).body(created);
+      LostItem created = items.createLost(req, userEmail);
+      return ResponseEntity.status(201).body(created);
+    } catch (Exception e) {
+      log.error("Error creating lost item: {}", e.getMessage());
+      return ResponseEntity.status(500).build();
+    }
   }
 
   @PostMapping("/found")
-  public ResponseEntity<?> found(@Valid @RequestBody FoundItemRequest req,
-                                    @RequestHeader(value="Authorization", required=false) String auth,
-                                    @RequestHeader(value="X-UID", required=false) String uid) {
-    log.info("Found item reported: title={}, userId={}", req.title, uid);
-    Long userId = null;
+  public ResponseEntity<?> found(@Valid @RequestBody FoundItemRequest req) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userEmail = auth.getName();
+    log.info("Found item reported: title={}, userEmail={}", req.title, userEmail);
+    
     try {
-      userId = uid != null ? Long.valueOf(uid) : null;
-    } catch (Exception e) { log.warn("Invalid userId format"); }
-    FoundItem created = items.createFound(req, userId);
-    return ResponseEntity.status(201).body(created);
+      FoundItem created = items.createFound(req, userEmail);
+      return ResponseEntity.status(201).body(created);
+    } catch (Exception e) {
+      log.error("Error creating found item: {}", e.getMessage());
+      return ResponseEntity.status(500).build();
+    }
   }
 
-  @GetMapping("/lost/search")
+  @GetMapping("/lost")
   public ResponseEntity<List<LostItem>> searchLost(@RequestParam(required = false, name = "q") String q,
                                                   @RequestParam(required = false, name = "category") String category,
                                                   @RequestParam(required = false, name = "subcategory") String subcategory) {
@@ -74,7 +84,7 @@ public class ItemController {
     return ResponseEntity.ok(results);
   }
 
-  @GetMapping("/found/search")
+  @GetMapping("/found")
   public ResponseEntity<List<FoundItem>> searchFound(@RequestParam(required = false, name = "q") String q,
                                                     @RequestParam(required = false, name = "category") String category,
                                                     @RequestParam(required = false, name = "subcategory") String subcategory) {
@@ -83,15 +93,17 @@ public class ItemController {
     return ResponseEntity.ok(results);
   }
 
-  @GetMapping("/lost/{id}/matches")
-  public ResponseEntity<List<FoundItem>> matchFoundForLost(@PathVariable("id") Long lostId) {
-    log.info("Finding matches for lost item id={}", lostId);
-    List<FoundItem> matches = matchingService.findMatchesForLost(lostId);
+  @GetMapping("/found/{id}/matches")
+  public ResponseEntity<List<LostItem>> matchLostForFound(@PathVariable("id") Long foundId) {
+    log.info("Finding matches for found item id={}", foundId);
+    List<LostItem> matches = matchingService.findMatchesForFound(foundId);
     return ResponseEntity.ok(matches);
   }
 
   @PostMapping("/lost/{lostId}/confirm-match/{foundId}")
-  public ResponseEntity<?> confirmMatch(@PathVariable("lostId") Long lostId, @PathVariable("foundId") Long foundId, @RequestHeader(value="X-Admin", required=false) String adminUser) {
+  public ResponseEntity<?> confirmMatch(@PathVariable("lostId") Long lostId, @PathVariable("foundId") Long foundId) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String adminUser = auth.getName(); // Get authenticated user email
     log.info("Admin confirming match: lostId={}, foundId={}, admin={}", lostId, foundId, adminUser);
     ItemMatch match = matchingService.confirmMatch(lostId, foundId, adminUser);
     if (match != null) {
@@ -101,10 +113,15 @@ public class ItemController {
     }
   }
 
-  @PostMapping("/lost/{lostId}/return/{foundId}")
-  public ResponseEntity<?> returnItem(@PathVariable("lostId") Long lostId, @PathVariable("foundId") Long foundId) {
-    log.info("Returning items: lostId={}, foundId={}", lostId, foundId);
-    matchingService.returnItem(lostId, foundId);
-    return ResponseEntity.ok().body("Items returned and moved to returned_items.");
+  @GetMapping("/matches/all")
+  public ResponseEntity<?> getAllMatches() {
+    log.info("Fetching all found items with matches and confidence scores");
+    try {
+      var allMatches = matchingService.getAllFoundItemsWithMatches();
+      return ResponseEntity.ok(allMatches);
+    } catch (Exception e) {
+      log.error("Error fetching matches: {}", e.getMessage(), e);
+      return ResponseEntity.status(500).body("Error fetching matches: " + e.getMessage());
+    }
   }
 }

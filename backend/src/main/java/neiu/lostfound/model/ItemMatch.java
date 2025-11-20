@@ -1,5 +1,6 @@
 package neiu.lostfound.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.Date;
 
@@ -12,10 +13,12 @@ public class ItemMatch {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lost_item_id")
+    @JsonBackReference
     private LostItem lostItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "found_item_id")
+    @JsonBackReference
     private FoundItem foundItem;
 
     @Enumerated(EnumType.STRING)

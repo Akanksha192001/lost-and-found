@@ -16,7 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,23 +37,47 @@ public class AuthController {
   public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
     log.info("Register request for email: {}", req.email);
     User user = auth.register(req);
-    return ResponseEntity.ok(java.util.Collections.singletonMap("name", user.getName()));
+    return ResponseEntity.ok(java.util.Map.of(
+      "name", user.getName(),
+      "email", user.getEmail(),
+      "role", user.getRole()
+    ));
   }
 
   @PostMapping("/login")
-  public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+  public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req, HttpServletRequest request) {
     log.info("Login attempt for email: {}", req.email);
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(req.email, req.password)
-    );
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-    User user = auth.findByEmail(req.email);
-    return ResponseEntity.ok(new Object() {
-      public final String name = user.getName();
-      public final String email = user.getEmail();
-      public final String role = user.getRole();
-    });
+    try {
+      Authentication authentication = authenticationManager.authenticate(
+              new UsernamePasswordAuthenticationToken(req.email, req.password)
+      );
+
+      // ✅ Store authentication in the SecurityContext
+      SecurityContext context = SecurityContextHolder.createEmptyContext();
+      context.setAuthentication(authentication);
+      SecurityContextHolder.setContext(context);
+
+      // ✅ Persist context into HTTP session
+      request.getSession(true)
+              .setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
+      User user = auth.findByEmail(req.email);
+      return ResponseEntity.ok(new Object() {
+        public final Long userId = user.getId();
+        public final String name = user.getName();
+        public final String email = user.getEmail();
+        public final String role = user.getRole();
+      });
+
+    } catch (org.springframework.security.authentication.BadCredentialsException e) {
+      return ResponseEntity.status(401).body(java.util.Collections.singletonMap("message", "Invalid password. Please try again"));
+    } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+      return ResponseEntity.status(404).body(java.util.Collections.singletonMap("message", "Account not found. Please register if you are new."));
+    } catch (Exception e) {
+      return ResponseEntity.status(403).body(java.util.Collections.singletonMap("message", "Access denied"));
+    }
   }
+
 
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {

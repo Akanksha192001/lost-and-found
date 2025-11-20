@@ -40,7 +40,7 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify({ email, password })
       });
-      setSession({ id: data.id, role: data.role, token: data.id });
+      setSession({ id: data.user, role: data.role, name: data.name, email: data.email });
       nav(landingRouteFor(data.role));
     } catch (err) {
       setError(err.message || "Invalid credentials. Please try again.");
@@ -53,7 +53,7 @@ export default function Login() {
         <img src="https://images.unsplash.com/photo-1531297484001-80022131f5a1?q=80&w=1200&auto=format&fit=crop" alt="" className="hero-img" />
       </div>
       <div className="formWrap">
-        <h1 className="title">{mode === "login" ? "Welcome Back" : "Welcome to NEIU Lost & Found"}</h1>
+        <h3 >Welcome to NEIU Lost & Found</h3>
         <p className="subtitle">{mode === "login" ? "Sign in to continue" : "Create your account"}</p>
 
         {mode === "login" ? (

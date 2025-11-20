@@ -1,10 +1,14 @@
 package neiu.lostfound.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
 @Table(name = "lost_items")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class LostItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,10 +24,11 @@ public class LostItem {
     private String location;
 
     @Temporal(TemporalType.DATE)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private Date dateLost;
 
-    @Column(length = 255)
-    private String imageUrl;
+    @Column(columnDefinition = "TEXT")
+    private String imageData;
 
     @Column(length = 100)
     private String ownerName;
@@ -31,10 +36,7 @@ public class LostItem {
     @Column(length = 100)
     private String ownerEmail;
 
-    @Column(length = 255)
-    private String ownerAddress;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reported_by")
     private User reportedBy;
 
@@ -42,9 +44,10 @@ public class LostItem {
     @Column(length = 10)
     private Status status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "matched_with")
-    private FoundItem matchedWith;
+    @JsonBackReference("lost-found-match")
+    private FoundItem matchedWith; // (in LostItem)
 
     @Column(length = 255)
     private String keywords; // comma-separated keywords for matching
@@ -70,14 +73,12 @@ public class LostItem {
     public void setLocation(String location) { this.location = location; }
     public Date getDateLost() { return dateLost; }
     public void setDateLost(Date dateLost) { this.dateLost = dateLost; }
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getImageData() { return imageData; }
+    public void setImageData(String imageData) { this.imageData = imageData; }
     public String getOwnerName() { return ownerName; }
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
     public String getOwnerEmail() { return ownerEmail; }
     public void setOwnerEmail(String ownerEmail) { this.ownerEmail = ownerEmail; }
-    public String getOwnerAddress() { return ownerAddress; }
-    public void setOwnerAddress(String ownerAddress) { this.ownerAddress = ownerAddress; }
     public User getReportedBy() { return reportedBy; }
     public void setReportedBy(User reportedBy) { this.reportedBy = reportedBy; }
     public Status getStatus() { return status; }
