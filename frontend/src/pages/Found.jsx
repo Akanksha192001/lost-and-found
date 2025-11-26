@@ -158,7 +158,6 @@ export default function Found() {
     <div className="card">
       <div className="header">
         <h2 className="pageTitle">Report Found Item</h2>
-        <p className="subtitle">Attach a photo and we'll scan for duplicates.</p>
       </div>
       <form onSubmit={submit} className="form">
         {/* 1. Essential Item Details */}

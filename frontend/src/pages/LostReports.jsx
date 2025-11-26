@@ -15,6 +15,7 @@ export default function LostReports() {
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [subcatOptions, setSubcatOptions] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("OPEN"); // OPEN, MATCHED, RETURNED, ALL
   const navigate = useNavigate();
 
   const loadLostItems = async () => {
@@ -24,7 +25,8 @@ export default function LostReports() {
       const userRole = getRole();
       // For USER role, load only their own reports; for ADMIN, load all reports
       const endpoint = userRole === "USER" ? "/items/lost/my" : "/items/lost";
-      const data = await api(endpoint);
+      const url = endpoint + (userRole === "ADMIN" ? `?status=${statusFilter}` : "");
+      const data = await api(url);
       setItems(data);
     } catch (err) {
       // Check if it's a session expiry or authentication error
@@ -75,6 +77,9 @@ export default function LostReports() {
       if (subcategory) {
         params.append('subcategory', subcategory);
       }
+      if (statusFilter) {
+        params.append('status', statusFilter);
+      }
 
       const url = `/items/lost${params.toString() ? `?${params.toString()}` : ''}`;
       const data = await api(url);
@@ -93,7 +98,7 @@ export default function LostReports() {
 
   useEffect(() => {
     loadLostItems();
-  }, []);
+  }, [statusFilter]);
 
   const userRole = getRole();
   const isUser = userRole === "USER";
@@ -130,6 +135,12 @@ export default function LostReports() {
           <select className="input" value={subcategory} onChange={onSubcategoryChange} disabled={!category}>
             <option value="">Select subcategory</option>
             {subcatOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+          </select>
+          <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="OPEN">Open</option>
+            <option value="MATCHED">Matched</option>
+            <option value="RETURNED">Returned</option>
+            <option value="ALL">All</option>
           </select>
           <button className="btn" type="submit">Search</button>
         </form>

@@ -1,6 +1,5 @@
 package neiu.lostfound.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.Date;
 
@@ -11,15 +10,11 @@ public class ItemMatch {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lost_item_id")
-    @JsonBackReference
-    private LostItem lostItem;
+    @Column(name = "lost_item_id")
+    private Long lostItemId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "found_item_id")
-    @JsonBackReference
-    private FoundItem foundItem;
+    @Column(name = "found_item_id")
+    private Long foundItemId;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
@@ -38,10 +33,10 @@ public class ItemMatch {
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public LostItem getLostItem() { return lostItem; }
-    public void setLostItem(LostItem lostItem) { this.lostItem = lostItem; }
-    public FoundItem getFoundItem() { return foundItem; }
-    public void setFoundItem(FoundItem foundItem) { this.foundItem = foundItem; }
+    public Long getLostItemId() { return lostItemId; }
+    public void setLostItemId(Long lostItemId) { this.lostItemId = lostItemId; }
+    public Long getFoundItemId() { return foundItemId; }
+    public void setFoundItemId(Long foundItemId) { this.foundItemId = foundItemId; }
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
     public String getMatchedBy() { return matchedBy; }

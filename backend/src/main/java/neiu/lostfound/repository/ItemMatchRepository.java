@@ -13,6 +13,9 @@ public interface ItemMatchRepository extends JpaRepository<ItemMatch, Long> {
     // Find confirmed match for a found item (should be unique)
     Optional<ItemMatch> findByFoundItemIdAndStatus(Long foundItemId, ItemMatch.Status status);
     
+    // Find all matches for a lost item
+    List<ItemMatch> findByLostItemId(Long lostItemId);
+    
     // Find all matches for a found item
     List<ItemMatch> findByFoundItemId(Long foundItemId);
 }

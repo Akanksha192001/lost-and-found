@@ -2,7 +2,6 @@ package neiu.lostfound.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.Date;
 
@@ -44,11 +43,6 @@ public class LostItem {
     @Column(length = 10)
     private Status status;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "matched_with")
-    @JsonBackReference("lost-found-match")
-    private FoundItem matchedWith; // (in LostItem)
-
     @Column(length = 255)
     private String keywords; // comma-separated keywords for matching
 
@@ -83,8 +77,6 @@ public class LostItem {
     public void setReportedBy(User reportedBy) { this.reportedBy = reportedBy; }
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
-    public FoundItem getMatchedWith() { return matchedWith; }
-    public void setMatchedWith(FoundItem matchedWith) { this.matchedWith = matchedWith; }
     public String getKeywords() { return keywords; }
     public void setKeywords(String keywords) { this.keywords = keywords; }
     public String getCategory() { return category; }

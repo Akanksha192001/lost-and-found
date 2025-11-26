@@ -78,18 +78,20 @@ public class ItemController {
   @GetMapping("/lost")
   public ResponseEntity<List<LostItem>> searchLost(@RequestParam(required = false, name = "q") String q,
                                                   @RequestParam(required = false, name = "category") String category,
-                                                  @RequestParam(required = false, name = "subcategory") String subcategory) {
-    log.info("Searching lost items by keyword: {}, category: {}, subcategory: {}", q, category, subcategory);
-    List<LostItem> results = items.searchLostItems(q, category, subcategory);
+                                                  @RequestParam(required = false, name = "subcategory") String subcategory,
+                                                  @RequestParam(required = false, name = "status") String status) {
+    log.info("Searching lost items by keyword: {}, category: {}, subcategory: {}, status: {}", q, category, subcategory, status);
+    List<LostItem> results = items.searchLostItems(q, category, subcategory, status);
     return ResponseEntity.ok(results);
   }
 
   @GetMapping("/found")
   public ResponseEntity<List<FoundItem>> searchFound(@RequestParam(required = false, name = "q") String q,
                                                     @RequestParam(required = false, name = "category") String category,
-                                                    @RequestParam(required = false, name = "subcategory") String subcategory) {
-    log.info("Searching found items by keyword: {}, category: {}, subcategory: {}", q, category, subcategory);
-    List<FoundItem> results = items.searchFoundItems(q, category, subcategory);
+                                                    @RequestParam(required = false, name = "subcategory") String subcategory,
+                                                    @RequestParam(required = false, name = "status") String status) {
+    log.info("Searching found items by keyword: {}, category: {}, subcategory: {}, status: {}", q, category, subcategory, status);
+    List<FoundItem> results = items.searchFoundItems(q, category, subcategory, status);
     return ResponseEntity.ok(results);
   }
 

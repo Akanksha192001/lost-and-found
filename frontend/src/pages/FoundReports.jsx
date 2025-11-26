@@ -14,6 +14,7 @@ export default function FoundReports() {
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [subcatOptions, setSubcatOptions] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("UNCLAIMED"); // UNCLAIMED, MATCHED, RETURNED, ALL
   const [matches, setMatches] = useState({}); // { [foundId]: [lostItems] }
   const [showMatchesFor, setShowMatchesFor] = useState(null);
   const [confirming, setConfirming] = useState({}); // { [lostId_foundId]: true/false }
@@ -24,7 +25,7 @@ export default function FoundReports() {
     try {
       setLoading(true);
       setError("");
-      const data = await api("/items/found");
+      const data = await api(`/items/found?status=${statusFilter}`);
       setItems(data);
     } catch (err) {
       // Check if it's a session expiry or authentication error
@@ -70,6 +71,9 @@ export default function FoundReports() {
       }
       if (subcategory) {
         params.append('subcategory', subcategory);
+      }
+      if (statusFilter) {
+        params.append('status', statusFilter);
       }
       const url = `/items/found${params.toString() ? `?${params.toString()}` : ''}`;
       const data = await api(url);
@@ -118,7 +122,7 @@ export default function FoundReports() {
 
   useEffect(() => {
     loadFoundItems();
-  }, []);
+  }, [statusFilter]);
 
   if (loading) {
     return (
@@ -147,6 +151,12 @@ export default function FoundReports() {
         <select className="input" value={subcategory} onChange={onSubcategoryChange} disabled={!category}>
           <option value="">Select subcategory</option>
           {subcatOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+        </select>
+        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="UNCLAIMED">Unclaimed</option>
+          <option value="MATCHED">Matched</option>
+          <option value="RETURNED">Returned</option>
+          <option value="ALL">All</option>
         </select>
         <button className="btn" type="submit">Search</button>
         <button className="btn" type="button" onClick={loadFoundItems}>Reset</button>
@@ -188,9 +198,11 @@ export default function FoundReports() {
                     {item.reporterEmail && ` (${item.reporterEmail})`}
                   </div>
                   <span className="item-status">{item.status}</span>
-                  <div style={{marginTop: '12px'}}>
-                    <button className="btn" onClick={() => fetchMatches(item.id)}>View Matches</button>
-                  </div>
+                  {item.status !== 'RETURNED' && (
+                    <div style={{marginTop: '12px'}}>
+                      <button className="btn" onClick={() => fetchMatches(item.id)}>View Matches</button>
+                    </div>
+                  )}
                 </div>
                 {showMatchesFor === item.id && (
                   <div style={{padding: '16px', borderTop: '1px solid var(--border)', background: '#f8f9fa'}}>

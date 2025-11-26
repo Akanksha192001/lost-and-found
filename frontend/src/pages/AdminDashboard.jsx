@@ -4,6 +4,7 @@ import './Admin.css';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('matching'); // 'matching' or 'handoffs'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Matching state
   const [matchData, setMatchData] = useState([]);
@@ -352,19 +353,37 @@ const AdminDashboard = () => {
   return (
     <div className="admin-container">
       <div className="admin-header">
-        <h1>Admin Dashboard</h1>
+        <div className="admin-header-content">
+          <div className="admin-title-section">
+            <h1>Admin Dashboard</h1>
+            <p className="admin-subtitle">Manage matches and handoffs</p>
+          </div>
+          <button 
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}></span>
+          </button>
+        </div>
         
         {/* Tab Navigation */}
-        <div className="tab-nav">
+        <div className={`tab-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <button 
             className={`tab-button ${activeTab === 'matching' ? 'active' : ''}`}
-            onClick={() => setActiveTab('matching')}
+            onClick={() => {
+              setActiveTab('matching');
+              setMobileMenuOpen(false);
+            }}
           >
             Matching ({matchData.length} items)
           </button>
           <button 
             className={`tab-button ${activeTab === 'handoffs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('handoffs')}
+            onClick={() => {
+              setActiveTab('handoffs');
+              setMobileMenuOpen(false);
+            }}
           >
             Handoff Queue ({handoffs.length})
           </button>
@@ -391,20 +410,39 @@ const AdminDashboard = () => {
 
           <div className="matching-summary">
             <div className="summary-card">
+              <span className="summary-icon">📦</span>
               <h3>Total Found Items</h3>
               <p className="summary-count">{matchData.length}</p>
             </div>
             <div className="summary-card">
+              <span className="summary-icon">🔍</span>
               <h3>With Matches</h3>
-              <p className="summary-count pending">
+              <p className="summary-count">
                 {matchData.filter(item => item.totalMatches > 0).length}
               </p>
             </div>
             <div className="summary-card">
+              <span className="summary-icon">✔</span>
               <h3>Confirmed Matches</h3>
-              <p className="summary-count completed">
+              <p className="summary-count">
                 {matchData.reduce((sum, item) => sum + item.confirmedMatches, 0)}
               </p>
+            </div>
+          </div>
+
+          {/* Mobile Stats Bar */}
+          <div className="mobile-stats-bar">
+            <div className="mobile-stat-item">
+              <span className="mobile-stat-label">Total</span>
+              <span className="mobile-stat-value">{matchData.length}</span>
+            </div>
+            <div className="mobile-stat-item">
+              <span className="mobile-stat-label">Matches</span>
+              <span className="mobile-stat-value">{matchData.filter(item => item.totalMatches > 0).length}</span>
+            </div>
+            <div className="mobile-stat-item">
+              <span className="mobile-stat-label">Confirmed</span>
+              <span className="mobile-stat-value">{matchData.reduce((sum, item) => sum + item.confirmedMatches, 0)}</span>
             </div>
           </div>
 
@@ -577,26 +615,50 @@ const AdminDashboard = () => {
 
           <div className="handoffs-summary">
         <div className="summary-card">
+          <span className="summary-icon">📋</span>
           <h3>Total Handoffs</h3>
           <p className="summary-count">{handoffs.length}</p>
         </div>
         <div className="summary-card">
+          <span className="summary-icon">⏳</span>
           <h3>Pending</h3>
-          <p className="summary-count pending">
+          <p className="summary-count">
             {handoffs.filter(h => h.status === 'PENDING').length}
           </p>
         </div>
         <div className="summary-card">
+          <span className="summary-icon">📅</span>
           <h3>Scheduled</h3>
-          <p className="summary-count scheduled">
+          <p className="summary-count">
             {handoffs.filter(h => h.status === 'SCHEDULED').length}
           </p>
         </div>
         <div className="summary-card">
+          <span className="summary-icon">✅</span>
           <h3>Completed</h3>
-          <p className="summary-count completed">
+          <p className="summary-count">
             {handoffs.filter(h => h.status === 'COMPLETED').length}
           </p>
+        </div>
+      </div>
+
+      {/* Mobile Stats Bar */}
+      <div className="mobile-stats-bar">
+        <div className="mobile-stat-item">
+          <span className="mobile-stat-label">Total</span>
+          <span className="mobile-stat-value">{handoffs.length}</span>
+        </div>
+        <div className="mobile-stat-item">
+          <span className="mobile-stat-label">Pending</span>
+          <span className="mobile-stat-value">{handoffs.filter(h => h.status === 'PENDING').length}</span>
+        </div>
+        <div className="mobile-stat-item">
+          <span className="mobile-stat-label">Scheduled</span>
+          <span className="mobile-stat-value">{handoffs.filter(h => h.status === 'SCHEDULED').length}</span>
+        </div>
+        <div className="mobile-stat-item">
+          <span className="mobile-stat-label">Done</span>
+          <span className="mobile-stat-value">{handoffs.filter(h => h.status === 'COMPLETED').length}</span>
         </div>
       </div>
 
@@ -623,16 +685,16 @@ const AdminDashboard = () => {
                   <td>{handoff.id}</td>
                   <td>
                     <div className="item-info">
-                      <strong>{handoff.lostItem.title}</strong>
+                      <strong>{handoff.lostItem?.title || 'N/A'}</strong>
                       <br />
-                      <small>Owner: {handoff.lostItem.ownerName}</small>
+                      <small>Owner: {handoff.lostItem?.ownerName || 'Unknown'}</small>
                     </div>
                   </td>
                   <td>
                     <div className="item-info">
-                      <strong>{handoff.foundItem.title}</strong>
+                      <strong>{handoff.foundItem?.title || 'N/A'}</strong>
                       <br />
-                      <small>Reporter: {handoff.foundItem.reporterName}</small>
+                      <small>Reporter: {handoff.foundItem?.reporterName || 'Unknown'}</small>
                     </div>
                   </td>
                   <td>
@@ -717,19 +779,19 @@ const AdminDashboard = () => {
                 <h3>Item Information</h3>
                 <div className="details-grid">
                   <div className="detail-item">
-                    <strong>Lost Item:</strong> {selectedHandoff.lostItem.title}
+                    <strong>Lost Item:</strong> {selectedHandoff.lostItem?.title || 'N/A'}
                   </div>
                   <div className="detail-item">
-                    <strong>Owner:</strong> {selectedHandoff.lostItem.ownerName} ({selectedHandoff.lostItem.ownerEmail})
+                    <strong>Owner:</strong> {selectedHandoff.lostItem?.ownerName || 'Unknown'} ({selectedHandoff.lostItem?.ownerEmail || 'N/A'})
                   </div>
                   <div className="detail-item">
-                    <strong>Found Item:</strong> {selectedHandoff.foundItem.title}
+                    <strong>Found Item:</strong> {selectedHandoff.foundItem?.title || 'N/A'}
                   </div>
                   <div className="detail-item">
-                    <strong>Reporter:</strong> {selectedHandoff.foundItem.reporterName} ({selectedHandoff.foundItem.reporterEmail})
+                    <strong>Reporter:</strong> {selectedHandoff.foundItem?.reporterName || 'Unknown'} ({selectedHandoff.foundItem?.reporterEmail || 'N/A'})
                   </div>
                   <div className="detail-item">
-                    <strong>Location:</strong> {selectedHandoff.foundItem.location}
+                    <strong>Location:</strong> {selectedHandoff.foundItem?.location || 'N/A'}
                   </div>
                 </div>
               </div>
@@ -828,16 +890,16 @@ const AdminDashboard = () => {
                     <h3>Item Information</h3>
                     <div className="details-grid">
                       <div className="detail-item">
-                        <strong>Lost Item:</strong> {selectedHandoff.lostItem.title}
+                        <strong>Lost Item:</strong> {selectedHandoff.lostItem?.title || 'N/A'}
                       </div>
                       <div className="detail-item">
-                        <strong>Owner:</strong> {selectedHandoff.lostItem.ownerName}
+                        <strong>Owner:</strong> {selectedHandoff.lostItem?.ownerName || 'Unknown'}
                       </div>
                       <div className="detail-item">
-                        <strong>Found Item:</strong> {selectedHandoff.foundItem.title}
+                        <strong>Found Item:</strong> {selectedHandoff.foundItem?.title || 'N/A'}
                       </div>
                       <div className="detail-item">
-                        <strong>Reporter:</strong> {selectedHandoff.foundItem.reporterName}
+                        <strong>Reporter:</strong> {selectedHandoff.foundItem?.reporterName || 'Unknown'}
                       </div>
                     </div>
                   </div>

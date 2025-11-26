@@ -10,17 +10,8 @@ public class HandoffQueue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "lost_item_id", nullable = true)
-    private LostItem lostItem;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "found_item_id", nullable = true)
-    private FoundItem foundItem;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "match_id")
-    private ItemMatch itemMatch;
+    @Column(name = "match_id", nullable = false)
+    private Long matchId;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
@@ -69,28 +60,12 @@ public class HandoffQueue {
         this.id = id;
     }
 
-    public LostItem getLostItem() {
-        return lostItem;
+    public Long getMatchId() {
+        return matchId;
     }
 
-    public void setLostItem(LostItem lostItem) {
-        this.lostItem = lostItem;
-    }
-
-    public FoundItem getFoundItem() {
-        return foundItem;
-    }
-
-    public void setFoundItem(FoundItem foundItem) {
-        this.foundItem = foundItem;
-    }
-
-    public ItemMatch getItemMatch() {
-        return itemMatch;
-    }
-
-    public void setItemMatch(ItemMatch itemMatch) {
-        this.itemMatch = itemMatch;
+    public void setMatchId(Long matchId) {
+        this.matchId = matchId;
     }
 
     public HandoffStatus getStatus() {

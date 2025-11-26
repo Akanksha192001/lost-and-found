@@ -1,6 +1,7 @@
 package neiu.lostfound.controller;
 
 import neiu.lostfound.dto.HandoffQueueRequest;
+import neiu.lostfound.dto.HandoffQueueResponse;
 import neiu.lostfound.model.HandoffQueue;
 import neiu.lostfound.service.HandoffQueueService;
 import org.springframework.http.HttpStatus;
@@ -22,7 +23,7 @@ public class HandoffQueueController {
     }
 
     @GetMapping
-    public ResponseEntity<List<HandoffQueue>> getAllHandoffs(
+    public ResponseEntity<List<HandoffQueueResponse>> getAllHandoffs(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "assignedTo", required = false) String assignedTo) {
         
@@ -43,8 +44,8 @@ public class HandoffQueueController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<HandoffQueue> getHandoffById(@PathVariable(value = "id") Long id) {
-        Optional<HandoffQueue> handoff = handoffQueueService.getHandoffById(id);
+    public ResponseEntity<HandoffQueueResponse> getHandoffById(@PathVariable(value = "id") Long id) {
+        Optional<HandoffQueueResponse> handoff = handoffQueueService.getHandoffById(id);
         return handoff.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

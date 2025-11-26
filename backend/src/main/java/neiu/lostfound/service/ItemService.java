@@ -71,9 +71,6 @@ public class ItemService {
         }
       });
     }
-    if (req.matchedWith != null) {
-      foundRepo.findById(req.matchedWith).ifPresent(it::setMatchedWith);
-    }
     // Extract and set keywords
     it.setKeywords(extractKeywords(req.title, req.description, req.location, req.ownerName));
     it.setCategory(req.category);
@@ -111,9 +108,6 @@ public class ItemService {
         }
       });
     }
-    if (req.matchedWith != null) {
-      lostRepo.findById(req.matchedWith).ifPresent(it::setMatchedWith);
-    }
     // Extract and set keywords
     it.setKeywords(extractKeywords(req.title, req.description, req.location, req.reporterName));
     it.setCategory(req.category);
@@ -134,10 +128,15 @@ public class ItemService {
     return foundRepo.findAll();
   }
 
-  public List<LostItem> searchLostItems(String q, String category, String subcategory) {
+  public List<LostItem> searchLostItems(String q, String category, String subcategory, String status) {
     List<LostItem> all = lostRepo.findAll();
+    
+    // Default to showing only OPEN (unresolved) items unless "ALL" is specified
+    final String filterStatus = (status == null || status.isBlank()) ? "OPEN" : status.toUpperCase();
+    
     List<LostItem> filtered = all.stream()
       .filter(item -> matchCategory(item, category, subcategory))
+      .filter(item -> filterStatus.equals("ALL") || item.getStatus().name().equals(filterStatus))
       .collect(Collectors.toList());
     if (q == null || q.isBlank()) {
       // No keyword filtering, just return all matches
@@ -157,10 +156,15 @@ public class ItemService {
     return ranked;
   }
 
-  public List<FoundItem> searchFoundItems(String q, String category, String subcategory) {
+  public List<FoundItem> searchFoundItems(String q, String category, String subcategory, String status) {
     List<FoundItem> all = foundRepo.findAll();
+    
+    // Default to showing only UNCLAIMED (unresolved) items unless "ALL" is specified
+    final String filterStatus = (status == null || status.isBlank()) ? "UNCLAIMED" : status.toUpperCase();
+    
     List<FoundItem> filtered = all.stream()
       .filter(item -> matchCategory(item, category, subcategory))
+      .filter(item -> filterStatus.equals("ALL") || item.getStatus().name().equals(filterStatus))
       .collect(Collectors.toList());
     if (q == null || q.isBlank()) {
       // No keyword filtering, just return all matches
