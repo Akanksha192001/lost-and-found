@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.text.DateFormat;
@@ -51,6 +52,7 @@ public class EmailNotificationService {
     this.foundItemRepo = foundItemRepo;
   }
 
+  @Async
   public void sendMatchConfirmation(LostItem lostItem, FoundItem foundItem) {
     if (lostItem == null || foundItem == null) {
       return;
@@ -80,6 +82,7 @@ public class EmailNotificationService {
         foundItem.getReporterEmail()), subject, body);
   }
 
+  @Async
   public void notifyHandoffCreated(HandoffQueue handoff) {
     if (handoff == null) return;
     
@@ -174,6 +177,7 @@ public class EmailNotificationService {
     sendEmail(foundItem.getReporterEmail(), reporterSubject, reporterBody);
   }
 
+  @Async
   public void notifyHandoffStatusChange(HandoffQueue handoff) {
     if (handoff == null) return;
     

@@ -4,32 +4,44 @@ import neiu.lostfound.dto.FoundItemWithMatches;
 import neiu.lostfound.dto.MatchResult;
 import neiu.lostfound.model.*;
 import neiu.lostfound.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Service
 public class MatchingService {
+    private static final Logger logger = LoggerFactory.getLogger(MatchingService.class);
+    private static final int AI_TIMEOUT_SECONDS = 30; // Timeout for AI calls (increased for free tier models)
+    
     private final LostItemRepository lostRepo;
     private final FoundItemRepository foundRepo;
     private final ItemMatchRepository matchRepo;
     private final HandoffQueueRepository handoffRepo;
     private final EmailNotificationService emailNotifications;
+    private final GeminiMatchingService geminiMatchingService;
+    private final ExecutorService aiExecutor;
 
     public MatchingService(LostItemRepository lostRepo,
             FoundItemRepository foundRepo,
             ItemMatchRepository matchRepo,
             HandoffQueueRepository handoffRepo,
-            EmailNotificationService emailNotifications) {
+            EmailNotificationService emailNotifications,
+            GeminiMatchingService geminiMatchingService) {
         this.lostRepo = lostRepo;
         this.foundRepo = foundRepo;
         this.matchRepo = matchRepo;
         this.handoffRepo = handoffRepo;
         this.emailNotifications = emailNotifications;
+        this.geminiMatchingService = geminiMatchingService;
+        // Thread pool for parallel AI calls (max 10 concurrent)
+        this.aiExecutor = Executors.newFixedThreadPool(10);
     }
 
     public List<LostItem> findMatchesForFound(Long foundId) {
@@ -314,17 +326,29 @@ public class MatchingService {
             if (lost.getKeywords() == null || lost.getKeywords().isBlank())
                 continue;
 
-            // Calculate confidence score
-            int score = calculateConfidenceScore(found, lost, foundKeywords);
-            if (score > 0) {
-                // Check if already confirmed - handle multiple matches, pick CONFIRMED if
-                // exists
+            // Calculate text-based score only (AI analysis done on-demand)
+            int textScore = calculateTextBasedConfidenceScore(found, lost, foundKeywords);
+            String textReason = buildTextBasedMatchReason(found, lost, foundKeywords);
+            
+            if (textScore > 0) {
+                // Check if already confirmed
                 List<ItemMatch> existingMatches = matchRepo.findByLostItemIdAndFoundItemId(lost.getId(), found.getId());
                 boolean isConfirmed = existingMatches.stream()
                         .anyMatch(m -> m.getStatus() == ItemMatch.Status.CONFIRMED);
 
-                String reason = buildMatchReason(found, lost, foundKeywords);
-                results.add(new MatchResult(lost, score, reason, isConfirmed));
+                MatchResult result = new MatchResult(lost, textScore, textReason, isConfirmed);
+                
+                // Set text-based results
+                result.setTextConfidenceScore(textScore);
+                result.setTextMatchReason(textReason);
+                
+                // AI fields will be null (populated on-demand via separate endpoint)
+                result.setAiConfidenceScore(null);
+                result.setAiReasoning(null);
+                result.setAiMatchingFeatures(null);
+                result.setAiDiscrepancies(null);
+                
+                results.add(result);
             }
         }
 
@@ -333,7 +357,8 @@ public class MatchingService {
         return results;
     }
 
-    private int calculateConfidenceScore(FoundItem found, LostItem lost, Set<String> foundKeywords) {
+    private int calculateTextBasedConfidenceScore(FoundItem found, LostItem lost, Set<String> foundKeywords) {
+        // Calculate keyword-based confidence score
         Set<String> lostKeywords = new HashSet<>(Arrays.asList(lost.getKeywords().split(",")));
         Set<String> intersection = new HashSet<>(foundKeywords);
         intersection.retainAll(lostKeywords);
@@ -382,7 +407,8 @@ public class MatchingService {
         return Math.min(score, 100); // Cap at 100
     }
 
-    private String buildMatchReason(FoundItem found, LostItem lost, Set<String> foundKeywords) {
+    private String buildTextBasedMatchReason(FoundItem found, LostItem lost, Set<String> foundKeywords) {
+        // Build keyword-based reasoning
         Set<String> lostKeywords = new HashSet<>(Arrays.asList(lost.getKeywords().split(",")));
         Set<String> intersection = new HashSet<>(foundKeywords);
         intersection.retainAll(lostKeywords);
@@ -401,5 +427,50 @@ public class MatchingService {
         }
 
         return String.join(" | ", reasons);
+    }
+    
+    /**
+     * Perform on-demand AI analysis for a specific lost/found item pair
+     */
+    public GeminiMatchingService.GeminiMatchResult performAIAnalysis(Long lostId, Long foundId) {
+        Optional<LostItem> lostOpt = lostRepo.findById(lostId);
+        Optional<FoundItem> foundOpt = foundRepo.findById(foundId);
+        
+        if (lostOpt.isEmpty() || foundOpt.isEmpty()) {
+            logger.warn("Lost item {} or Found item {} not found for AI analysis", lostId, foundId);
+            return null;
+        }
+        
+        LostItem lost = lostOpt.get();
+        FoundItem found = foundOpt.get();
+        
+        if (!geminiMatchingService.isEnabled()) {
+            logger.warn("Gemini AI is not enabled");
+            return null;
+        }
+        
+        try {
+            Future<GeminiMatchingService.GeminiMatchResult> future = aiExecutor.submit(() -> 
+                geminiMatchingService.calculateMatchConfidence(lost, found)
+            );
+            
+            GeminiMatchingService.GeminiMatchResult aiResult = future.get(AI_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            logger.info("AI analysis completed for Lost ID {} and Found ID {} with score: {}", 
+                       lostId, foundId, aiResult != null ? aiResult.getConfidenceScore() : "null");
+            return aiResult;
+            
+        } catch (TimeoutException e) {
+            logger.error("AI analysis timed out after {} seconds for Lost ID {} and Found ID {}", 
+                        AI_TIMEOUT_SECONDS, lostId, foundId);
+            throw new RuntimeException("AI analysis timed out after " + AI_TIMEOUT_SECONDS + " seconds");
+        } catch (InterruptedException e) {
+            logger.error("AI analysis interrupted for Lost ID {} and Found ID {}", lostId, foundId);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("AI analysis was interrupted");
+        } catch (ExecutionException e) {
+            logger.error("AI analysis failed for Lost ID {} and Found ID {}: {}", 
+                        lostId, foundId, e.getMessage());
+            throw new RuntimeException("AI analysis failed: " + e.getCause().getMessage());
+        }
     }
 }

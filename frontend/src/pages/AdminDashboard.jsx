@@ -12,6 +12,12 @@ const AdminDashboard = () => {
   const [matchFilter, setMatchFilter] = useState('ALL'); // ALL, MATCHED, UNMATCHED
   const [expandedItems, setExpandedItems] = useState(new Set());
   
+  // AI Analysis state
+  const [aiAnalysis, setAiAnalysis] = useState({});
+  const [aiLoading, setAiLoading] = useState({});
+  const [aiError, setAiError] = useState({});
+  const [showAiAnalysis, setShowAiAnalysis] = useState({});
+  
   // Handoff state
   const [handoffs, setHandoffs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -271,9 +277,40 @@ const AdminDashboard = () => {
       setOpenOptionsMenu(null);
     } else {
       const buttonRect = event.currentTarget.getBoundingClientRect();
+      const menuWidth = 200;
+      const estimatedMenuHeight = 200;
+      
+      // Horizontal positioning - align right edge of menu with right edge of button
+      let leftPosition = buttonRect.right - menuWidth;
+      
+      // If menu would go off left edge, align with button left instead
+      if (leftPosition < 10) {
+        leftPosition = buttonRect.left;
+      }
+      
+      // Vertical positioning - check if button is near bottom of window
+      const spaceBelow = window.innerHeight - buttonRect.bottom;
+      let topPosition;
+      
+      if (spaceBelow < estimatedMenuHeight) {
+        // Show menu ending just above button if near bottom
+        topPosition = buttonRect.top;
+        // Transform to move menu up by its own height using CSS
+        setMenuPosition({
+          top: topPosition,
+          left: leftPosition,
+          transform: 'translateY(-100%)'
+        });
+        setOpenOptionsMenu(handoffId);
+        return;
+      } else {
+        // Show below button
+        topPosition = buttonRect.bottom + 5;
+      }
+      
       setMenuPosition({
-        top: buttonRect.bottom + window.scrollY,
-        left: buttonRect.right + window.scrollX - 200 // 200px is the menu width
+        top: topPosition,
+        left: leftPosition
       });
       setOpenOptionsMenu(handoffId);
     }
@@ -336,6 +373,66 @@ const AdminDashboard = () => {
   const handleRejectMatch = async (foundItemId, lostItemId) => {
     // For now, just close the expanded row - in future could mark as "not a match"
     alert('Match rejection feature - to be implemented');
+  };
+
+  const handleAIAnalysis = async (lostItemId, foundItemId) => {
+    const matchKey = `${lostItemId}-${foundItemId}`;
+    
+    setAiLoading(prev => ({ ...prev, [matchKey]: true }));
+    setAiError(prev => ({ ...prev, [matchKey]: null }));
+    
+    try {
+      const response = await api(`/items/analyze-match/${lostItemId}/${foundItemId}`, {
+        method: 'POST'
+      });
+      
+      setAiAnalysis(prev => ({ ...prev, [matchKey]: response }));
+      setShowAiAnalysis(prev => ({ ...prev, [matchKey]: true }));
+    } catch (err) {
+      console.error('Error performing AI analysis:', err);
+      
+      // Determine appropriate error message based on error type
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (err.response) {
+        // Server responded with error status
+        const status = err.response.status;
+        const data = err.response.data;
+        
+        if (status === 400) {
+          errorMessage = '❌ AI analysis is not available. Please ensure Gemini AI is enabled and configured with a valid API key.';
+        } else if (status === 404) {
+          errorMessage = '❌ Match not found. The items may have been deleted or the match no longer exists.';
+        } else if (status === 500) {
+          if (typeof data === 'string' && data.includes('timeout')) {
+            errorMessage = '⏱️ AI analysis timed out. The AI service is taking too long to respond. Please try again.';
+          } else if (typeof data === 'string' && data.includes('API key')) {
+            errorMessage = '🔑 Invalid or missing API key. Please contact the administrator to configure Gemini AI properly.';
+          } else if (typeof data === 'string' && data.includes('quota')) {
+            errorMessage = '📊 API quota exceeded. The daily limit for AI requests has been reached. Please try again later.';
+          } else {
+            errorMessage = 'AI analysis failed on the server. Please contact the administrator if this persists.';
+          }
+        } else if (status === 401 || status === 403) {
+          errorMessage = '🔒 Unauthorized. Please log in again to continue.';
+        } else {
+          errorMessage = `Server error (${status}). Please try again or contact support.`;
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        errorMessage = '🌐 Network error. Please check your internet connection and try again.';
+      } else if (err.message) {
+        // Error in request setup
+        errorMessage = `${err.message}`;
+      }
+      
+      setAiError(prev => ({ 
+        ...prev, 
+        [matchKey]: errorMessage
+      }));
+    } finally {
+      setAiLoading(prev => ({ ...prev, [matchKey]: false }));
+    }
   };
 
   const getFilteredMatchData = () => {
@@ -569,9 +666,87 @@ const AdminDashboard = () => {
                                         >
                                           ✗ Not a Match
                                         </button>
+                                        <button 
+                                          className="btn-ai-analysis"
+                                          onClick={() => handleAIAnalysis(match.lostItem.id, item.foundItem.id)}
+                                          disabled={aiLoading[`${match.lostItem.id}-${item.foundItem.id}`]}
+                                        >
+                                          {aiLoading[`${match.lostItem.id}-${item.foundItem.id}`] ? '⏳' : '🤖'} AI Analysis
+                                        </button>
                                       </>
                                     )}
                                   </div>
+
+                                  {/* AI Analysis Loading State */}
+                                  {aiLoading[`${match.lostItem.id}-${item.foundItem.id}`] && (
+                                    <div className="ai-loading">
+                                      <div className="spinner"></div>
+                                      <span>AI is analyzing this match... Please wait.</span>
+                                    </div>
+                                  )}
+
+                                  {/* AI Analysis Error State */}
+                                  {aiError[`${match.lostItem.id}-${item.foundItem.id}`] && (
+                                    <div className="ai-error">
+                                      <span className="error-icon">⚠️</span>
+                                      <span>{aiError[`${match.lostItem.id}-${item.foundItem.id}`]}</span>
+                                    </div>
+                                  )}
+
+                                  {/* AI Analysis Results */}
+                                  {showAiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`] && 
+                                   aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`] && (
+                                    <div className="ai-results">
+                                      <div className="ai-results-header">
+                                        <h4>🤖 AI Analysis Results</h4>
+                                        <button 
+                                          className="btn-close-ai"
+                                          onClick={() => setShowAiAnalysis(prev => ({ 
+                                            ...prev, 
+                                            [`${match.lostItem.id}-${item.foundItem.id}`]: false 
+                                          }))}
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                      
+                                      <div className="ai-confidence">
+                                        <span className="ai-label">AI Confidence Score:</span>
+                                        <span className={`ai-confidence-badge ${getConfidenceBadgeClass(aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].confidenceScore)}`}>
+                                          {aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].confidenceScore}%
+                                        </span>
+                                      </div>
+
+                                      <div className="ai-reasoning">
+                                        <h5>Reasoning:</h5>
+                                        <p>{aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].reasoning}</p>
+                                      </div>
+
+                                      {aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].matchingFeatures && 
+                                       aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].matchingFeatures.length > 0 && (
+                                        <div className="ai-features">
+                                          <h5>✓ Matching Features:</h5>
+                                          <ul>
+                                            {aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].matchingFeatures.map((feature, i) => (
+                                              <li key={i}>{feature}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].discrepancies && 
+                                       aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].discrepancies.length > 0 && (
+                                        <div className="ai-discrepancies">
+                                          <h5>⚠ Discrepancies:</h5>
+                                          <ul>
+                                            {aiAnalysis[`${match.lostItem.id}-${item.foundItem.id}`].discrepancies.map((discrepancy, i) => (
+                                              <li key={i}>{discrepancy}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -721,7 +896,8 @@ const AdminDashboard = () => {
                               className="options-dropdown-fixed"
                               style={{
                                 top: `${menuPosition.top}px`,
-                                left: `${menuPosition.left}px`
+                                left: `${menuPosition.left}px`,
+                                transform: menuPosition.transform || 'none'
                               }}
                             >
                               {handoff.status === 'PENDING' && (

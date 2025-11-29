@@ -126,4 +126,20 @@ public class ItemController {
       return ResponseEntity.status(500).body("Error fetching matches: " + e.getMessage());
     }
   }
+  
+  @PostMapping("/analyze-match/{lostId}/{foundId}")
+  public ResponseEntity<?> analyzeMatchWithAI(@PathVariable("lostId") Long lostId, 
+                                              @PathVariable("foundId") Long foundId) {
+    log.info("AI analysis requested for lostId={}, foundId={}", lostId, foundId);
+    try {
+      var aiResult = matchingService.performAIAnalysis(lostId, foundId);
+      if (aiResult == null) {
+        return ResponseEntity.status(400).body("AI analysis not available or items not found");
+      }
+      return ResponseEntity.ok(aiResult);
+    } catch (RuntimeException e) {
+      log.error("Error during AI analysis: {}", e.getMessage(), e);
+      return ResponseEntity.status(500).body(e.getMessage());
+    }
+  }
 }
