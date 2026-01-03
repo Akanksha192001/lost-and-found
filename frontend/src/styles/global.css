@@ -23,8 +23,9 @@ body,
 body {
     margin: 0;
     font-family: Inter, system-ui, Arial, sans-serif;
-    background: linear-gradient(120deg, #eef0ff, #eaeaff);
-    font-size: 14px
+    background: linear-gradient(120deg, #eef0ff88, #eaeaff88), url('Background.png') repeat fixed;
+    background-size: contain;
+    font-size: 14px;
 }
 
 a {

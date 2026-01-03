@@ -127,7 +127,7 @@ export default function LostReports() {
       
       {!isUser && (
         <form onSubmit={handleSearchSubmit} className="searchForm">
-          <input className="input" type="text" placeholder="Search keywords (comma separated)" value={searchTerm} onChange={handleSearchChange} />
+          <input className="input" type="text" placeholder="Search keywords..." title="Use comma separated keywords" value={searchTerm} onChange={handleSearchChange} />
           <select className="input" value={category} onChange={onCategoryChange}>
             <option value="">Select category</option>
             {categories.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
@@ -137,12 +137,20 @@ export default function LostReports() {
             {subcatOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
           </select>
           <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="OPEN">Open</option>
-            <option value="MATCHED">Matched</option>
-            <option value="RETURNED">Returned</option>
-            <option value="ALL">All</option>
+            <option value="OPEN">Open Only</option>
+            <option value="MATCHED">Matched Only</option>
+            <option value="RETURNED">Returned Only</option>
+            <option value="ALL">All Statuses</option>
           </select>
           <button className="btn" type="submit">Search</button>
+          <button className="btn" type="button" onClick={() => {
+            setSearchTerm("");
+            setCategory("");
+            setSubcategory("");
+            setSubcatOptions([]);
+            setStatusFilter("OPEN");
+            loadLostItems();
+          }}>Reset</button>
         </form>
       )}
 

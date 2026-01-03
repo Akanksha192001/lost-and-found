@@ -143,7 +143,7 @@ export default function FoundReports() {
       </div>
       {error && <p className="error">{error}</p>}
       <form onSubmit={handleSearchSubmit} className="searchForm">
-        <input className="input" type="text" placeholder="Search keywords (comma separated)" value={searchTerm} onChange={handleSearchChange} />
+        <input className="input" type="text" placeholder="Search keywords..." title="Use comma separated keywords" value={searchTerm} onChange={handleSearchChange} />
         <select className="input" value={category} onChange={onCategoryChange}>
           <option value="">Select category</option>
           {categories.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
@@ -159,7 +159,14 @@ export default function FoundReports() {
           <option value="ALL">All</option>
         </select>
         <button className="btn" type="submit">Search</button>
-        <button className="btn" type="button" onClick={loadFoundItems}>Reset</button>
+        <button className="btn" type="button" onClick={() => {
+            setSearchTerm("");
+            setCategory("");
+            setSubcategory("");
+            setSubcatOptions([]);
+            setStatusFilter("UNCLAIMED");
+            loadFoundItems();
+          }} style={{ background: "#6b7280" }}>Reset</button>
       </form>
       <div className="list">
         {items.length === 0 ? (
